@@ -39,23 +39,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	h := sha1.New()
-	hWriter := bufio.NewWriter(h)
-	p := make([]byte, 1024)
+	hash := sha1.New()
+	hashWriter := bufio.NewWriter(hash)
+
+	inbuf := make([]byte, 8)
 	n := 0
-	for ; err != io.EOF; n, err = reader.Read(p) {
-		// TODO: handle the buffer underwrite case.
-		_, herr := hWriter.Write(p[:n])
-		if herr != nil {
-			log.Printf("writing to sha1 hasher: %v", herr)
+	for ; err != io.EOF; n, err = reader.Read(inbuf) {
+		// Read stdout from subprocess into buffer inbuf.
+		// Then write inbuf to both the hasher and to the output file.
+		hashbuf := bytes.NewBuffer(inbuf[:n])
+		if _, err := io.Copy(hashWriter, hashbuf); err != nil {
+			log.Fatalf(err.Error())
 		}
-		_, oerr := out.Write(p[:n])
-		if oerr != nil {
-			log.Printf("Error writing to outfile: %v", oerr)
+		outbuf := bytes.NewBuffer(inbuf[:n])
+		if _, err := io.Copy(out, outbuf); err != nil {
+			log.Fatalf(err.Error())
 		}
 	}
 
-	hWriter.Flush()
+	hashWriter.Flush()
 
 	pFile, err := os.OpenFile(".prov", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	defer pFile.Close()
@@ -64,7 +66,7 @@ func main() {
 	}
 
 	line := []string{
-		fmt.Sprintf("%x", h.Sum(nil)),
+		fmt.Sprintf("%x", hash.Sum(nil)),
 		fmt.Sprintf("%v", time.Now()),
 		os.Getenv("USER"),
 		fmt.Sprintf("%s", subCmd),
