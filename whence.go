@@ -2,18 +2,23 @@ package main
 
 import (
 	"bufio"
-	//"bytes"
 	"crypto/sha1"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	//"os/exec"
-	//"time"
+	"strings"
 )
 
+const BUFFSIZE = 1024
+
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Printf("Usage: %s <filename>", os.Args[0])
+		os.Exit(1)
+	}
+
 	pFile, err := os.Open(".prov")
 	if err != nil {
 		log.Fatalf("Error opening .prov file: %v", err)
@@ -28,10 +33,10 @@ func main() {
 
 	h := sha1.New()
 	hWriter := bufio.NewWriter(h)
-	p := make([]byte, 1024)
-	n := 0
-	for ; err != io.EOF; n, err = inReader.Read(p) {
-		_, err := hWriter.Write(p[:n])
+	buff := make([]byte, BUFFSIZE)
+	bread := 0
+	for ; err != io.EOF; bread, err = inReader.Read(buff) {
+		_, err := hWriter.Write(buff[:bread])
 		if err != nil {
 			log.Printf("Error writing to sha1 hasher: %v", err)
 		}
@@ -50,7 +55,7 @@ func main() {
 			continue
 		}
 		if line[0] == cs {
-			fmt.Printf("%v", line)
+			fmt.Printf("command: %v\n", strings.Join(line[3:], " "))
 			os.Exit(0)
 		}
 	}

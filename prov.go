@@ -13,16 +13,19 @@ import (
 	"time"
 )
 
+const BUFFSIZE = 1024
+
 func main() {
 	if len(os.Args) < 3 {
-		log.Fatalf("Usage: %s filename cmd...\n", os.Args[0])
+		fmt.Printf("Usage: %s filename <cmd> [args...]\n", os.Args[0])
+		os.Exit(1)
 	}
 
 	outfile := os.Args[1]
 	out, err := os.Create(outfile)
 	defer out.Close()
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Fatalf("Couldn't create %s: %v", outfile, err)
 	}
 
 	subCmd := os.Args[2]
@@ -42,16 +45,18 @@ func main() {
 	hash := sha1.New()
 	hashWriter := bufio.NewWriter(hash)
 
-	inbuf := make([]byte, 8)
-	n := 0
-	for ; err != io.EOF; n, err = reader.Read(inbuf) {
-		// Read stdout from subprocess into buffer inbuf.
-		// Then write inbuf to both the hasher and to the output file.
-		hashbuf := bytes.NewBuffer(inbuf[:n])
+	inbuf := make([]byte, BUFFSIZE)
+	bread := 0
+
+	// Read stdout from subprocess into buffer inbuf.
+	// Then write inbuf to both the hasher and to the output file.
+
+	for ; err != io.EOF; bread, err = reader.Read(inbuf) {
+		hashbuf := bytes.NewBuffer(inbuf[:bread])
 		if _, err := io.Copy(hashWriter, hashbuf); err != nil {
 			log.Fatalf(err.Error())
 		}
-		outbuf := bytes.NewBuffer(inbuf[:n])
+		outbuf := bytes.NewBuffer(inbuf[:bread])
 		if _, err := io.Copy(out, outbuf); err != nil {
 			log.Fatalf(err.Error())
 		}
