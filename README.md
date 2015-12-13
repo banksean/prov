@@ -52,6 +52,7 @@ Note that in the example, *even if `test.out` had been moved to a different loca
 
 - Move the data currently kept in `~/.prov` to a central location shared by multiple users.  (Just realized this is very similar to @gojomo's now-defunct https://bitzi.com/ project :)
 - Try to determine if any of the subprocess's input files *also* have provenance information, and store references to each input file's SHA1. Keep a family tree of the files.
+- FUSE LOL
 
 ## Why
 
