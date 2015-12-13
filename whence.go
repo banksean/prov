@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	pFile, err := os.Open(".prov")
+	pFile, err := os.Open(filepath.Join(os.Getenv("HOME"), ".prov"))
 	if err != nil {
 		log.Fatalf("Error opening .prov file: %v", err)
 	}
@@ -45,17 +46,20 @@ func main() {
 	hWriter.Flush()
 	cs := fmt.Sprintf("%x", h.Sum(nil))
 
-	fmt.Printf("hash: %s\n", cs)
+	fmt.Printf("Hash: %s\n", cs)
 
 	r := csv.NewReader(pFile)
 	line := []string{}
 	err = nil
 	for ; err != io.EOF; line, err = r.Read() {
-		if len(line) < 4 {
+		if len(line) < 5 {
 			continue
 		}
 		if line[0] == cs {
-			fmt.Printf("command: %v\n", strings.Join(line[3:], " "))
+			fmt.Printf("Time: %v\n", line[1])
+			fmt.Printf("User: %v\n", line[2])
+			fmt.Printf("Directory: %v\n", line[3])
+			fmt.Printf("Command: %v\n", strings.Join(line[4:], " "))
 			os.Exit(0)
 		}
 	}
