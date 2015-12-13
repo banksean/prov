@@ -38,8 +38,8 @@ The design is very simple, basically a process wrapper that logs some stuff:
 
 ### How prov works
 - Take everything that comes after `prov` on the command line, and run it in a subprocess. 
-- Buffer the subprocess's stdout stream, take the SHA1 of whatever comes out of that, and also write it to our own stdout.
-- Subprocess stderr goes to our stderr.
+- Read the subprocess's stdout stream into a buffer, add it to the SHA1, and also write it to our own process's stdout.
+- Subprocess's stderr just goes to our stderr.
 - Add a new line to `~/.prov` with the SHA1 of the file, plus some additional information about how and when the file was created.
 
 ### How whence works
