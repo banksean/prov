@@ -11,11 +11,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
-const BUFFSIZE = 1024
+const BUFFSIZE = 4
 
 func main() {
 	if len(os.Args) < 2 {
@@ -28,40 +27,53 @@ func main() {
 
 	cmd := exec.Command(subCmd, subArgs...)
 
-	var cmdOut bytes.Buffer
-	cmd.Stdout = &cmdOut
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
+	cmdReader, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Printf("Error executing command: %s\nError: %s\n", strings.Join(os.Args[2:], " "), err)
+		fmt.Printf("Error getting stdout: %v", err)
 		os.Exit(1)
 	}
 
 	hash := sha1.New()
 	hashWriter := bufio.NewWriter(hash)
 
-	inbuf := make([]byte, BUFFSIZE)
-	bread := 0
+	go func() {
+		inbuf := make([]byte, BUFFSIZE)
+		bread := 0
 
-	// Read stdout from subprocess into buffer inbuf.
-	// Then write inbuf to both the hasher and to the output file.
+		// Read stdout from subprocess into buffer inbuf.
+		// Then write inbuf to both the hasher and to the output file.
 
-	reader := bufio.NewReader(&cmdOut)
-	for ; err != io.EOF; bread, err = reader.Read(inbuf) {
-		outbuf := bytes.NewReader(inbuf[:bread])
-		if _, err = io.Copy(hashWriter, outbuf); err != nil {
-			log.Fatal(err)
+		reader := bufio.NewReader(cmdReader)
+		for ; err != io.EOF; bread, err = reader.Read(inbuf) {
+			outbuf := bytes.NewReader(inbuf[:bread])
+			if _, err = io.Copy(hashWriter, outbuf); err != nil {
+				log.Fatal(err)
+			}
+
+			// Rewind so we can copy it back out to our stdout too.
+			if _, err = outbuf.Seek(0, 0); err != nil {
+				log.Fatal(err)
+			}
+
+			if _, err = io.Copy(os.Stdout, outbuf); err != nil {
+				log.Fatal(err)
+			}
 		}
+	}()
 
-		// Rewind so we can copy it back out to our stdout too.
-		if _, err = outbuf.Seek(0, 0); err != nil {
-			log.Fatal(err)
-		}
+	// Execute cmd and wait for it to finish.
+	err = cmd.Start()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting cmd: %s\n", err)
+		os.Exit(1)
+	}
 
-		if _, err = io.Copy(os.Stdout, outbuf); err != nil {
-			log.Fatal(err)
-		}
+	err = cmd.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error waiting for cmd: %v", err)
+		os.Exit(1)
 	}
 
 	hashWriter.Flush()
